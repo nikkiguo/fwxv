@@ -1,0 +1,29 @@
+#pragma once
+{% set board = data["Board"] -%}
+#include "can_fifo.h"
+#include "can_msg.h"
+#include "{{board}}_unpack_msg.h"
+
+
+{% set messages = data["Messages"] -%}
+{%- for message in messages -%} 
+
+#define {{board | upper }}_{{message | upper }}_ID {{messages[message]['id']}}
+
+{% endfor %}  
+
+void can_receive_all() {
+    CanFifo msg_queue = {0};
+    CanMessage msg = {0};
+    while(can_fifo_pop(&msg_queue, &msg)){
+        switch (msg.msg_id){
+            {% set messages = data["Messages"] -%}
+            {%- for message in messages -%} 
+            {%set signals = messages[message]['signals']%}
+             case {{board | upper }}_{{message | upper }}_ID:
+                can_unpack_{{message}}(&msg {%- for signal in signals -%}, &{{board}}_receive_struct.{{message}}_{{signal}} {%- endfor -%});
+                break;
+            {% endfor %}  
+        }
+    }
+}
