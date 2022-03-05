@@ -1,0 +1,26 @@
+#pragma once
+
+#include <stddef.h>
+
+#include "can.h"
+#include "can_ack.h"
+#include "can_msg_defs.h"
+#include "can_pack.h"
+
+{% set messages = data["Messages"] -%}
+{%- for message in messages -%}    
+
+{%- set signals = messages[message]['signals'] -%}
+{#finding the length of the messages using the first signal length#}
+{%- set first_signal = signals|first -%}
+{%- set size = signals[first_signal]['length'] -%}
+
+StatusCode can_transmit_{{ message }}(const CanAckRequest *ack_ptr {%- for signal in signals -%}, uint{{size}}_t {{signal}}_u{{size}}  {%-endfor%}) {
+{                                                       
+    CanMessage msg = { 0 };                            
+    can_pack_{{ message }}(&msg {%- for signal in signals -%}, {{signal}}_u{{size}} {%-endfor%});         
+    StatusCode status = can_transmit(&msg, ack_ptr); 
+    return status;                                            
+}
+  
+{% endfor -%}
