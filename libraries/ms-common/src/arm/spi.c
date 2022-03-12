@@ -15,6 +15,10 @@ static SpiPortData s_port[NUM_SPI_PORTS] = {
   [SPI_PORT_2] = { .rcc_cmd = RCC_APB1PeriphClockCmd, .periph = RCC_APB1Periph_SPI2, .base = SPI2 },
 };
 
+// I2C mutex for simultaneous task handling
+#define SPI_MUTEX_WAIT_MS 1000
+static Mutex spi_mutex = {0}
+
 StatusCode spi_init(SpiPort spi, const SpiSettings *settings) {
   if (spi >= NUM_SPI_PORTS) {
     return status_msg(STATUS_CODE_INVALID_ARGS, "Invalid SPI port.");
@@ -69,43 +73,81 @@ StatusCode spi_init(SpiPort spi, const SpiSettings *settings) {
 
   SPI_Cmd(s_port[spi].base, ENABLE);
 
+  mutex_init(&spi_mutex);
+
   return STATUS_CODE_OK;
 }
 
 StatusCode spi_tx(SpiPort spi, uint8_t *tx_data, size_t tx_len) {
-  for (size_t i = 0; i < tx_len; i++) {
-    while (SPI_I2S_GetFlagStatus(s_port[spi].base, SPI_I2S_FLAG_TXE) == RESET) {
-    }
-    SPI_SendData8(s_port[spi].base, tx_data[i]);
+  // Proceed if mutex is intialized
+  if (spi_mutex->handle == NULL){
+     return status_msg(STATUS_CODE_UNINITIALIZED, "Mutex is not intialized");
+  }
 
-    while (SPI_I2S_GetFlagStatus(s_port[spi].base, SPI_I2S_FLAG_RXNE) == RESET) {
+  // use spi if mutex is unlocked
+  if (mutex_lock(*spi_mutex, SSPI_MUTEX_WAIT_MS) == STATUS_CODE_OK){
+    for (size_t i = 0; i < tx_len; i++) {
+      while (SPI_I2S_GetFlagStatus(s_port[spi].base, SPI_I2S_FLAG_TXE) == RESET) {
+      }
+      SPI_SendData8(s_port[spi].base, tx_data[i]);
+
+      while (SPI_I2S_GetFlagStatus(s_port[spi].base, SPI_I2S_FLAG_RXNE) == RESET) {
+      }
+      SPI_ReceiveData8(s_port[spi].base);
     }
-    SPI_ReceiveData8(s_port[spi].base);
   }
 
   return STATUS_CODE_OK;
 }
 
 StatusCode spi_rx(SpiPort spi, uint8_t *rx_data, size_t rx_len, uint8_t placeholder) {
-  for (size_t i = 0; i < rx_len; i++) {
-    while (SPI_I2S_GetFlagStatus(s_port[spi].base, SPI_I2S_FLAG_TXE) == RESET) {
-    }
-    SPI_SendData8(s_port[spi].base, placeholder);
+   // Proceed if mutex is intialized
+  if (spi_mutex->handle == NULL){
+     return status_msg(STATUS_CODE_UNINITIALIZED, "Mutex is not intialized");
+  }
 
-    while (SPI_I2S_GetFlagStatus(s_port[spi].base, SPI_I2S_FLAG_RXNE) == RESET) {
+  // use spi if mutex is unlocked
+  if (mutex_lock(*spi_mutex, SSPI_MUTEX_WAIT_MS) == STATUS_CODE_OK){
+    for (size_t i = 0; i < rx_len; i++) {
+      while (SPI_I2S_GetFlagStatus(s_port[spi].base, SPI_I2S_FLAG_TXE) == RESET) {
+      }
+      SPI_SendData8(s_port[spi].base, placeholder);
+
+      while (SPI_I2S_GetFlagStatus(s_port[spi].base, SPI_I2S_FLAG_RXNE) == RESET) {
+      }
+      rx_data[i] = SPI_ReceiveData8(s_port[spi].base);
     }
-    rx_data[i] = SPI_ReceiveData8(s_port[spi].base);
   }
 
   return STATUS_CODE_OK;
 }
 
 StatusCode spi_cs_set_state(SpiPort spi, GpioState state) {
-  return gpio_set_state(&s_port[spi].cs, state);
+  // Proceed if mutex is intialized
+  if (spi_mutex->handle == NULL){
+     return status_msg(STATUS_CODE_UNINITIALIZED, "Mutex is not intialized");
+  }
+
+  // use spi if mutex is unlocked
+  if (mutex_lock(*spi_mutex, SSPI_MUTEX_WAIT_MS) == STATUS_CODE_OK){
+    return gpio_set_state(&s_port[spi].cs, state);
+  }
+
+  return STATUS_CODE_OK;
 }
 
 StatusCode spi_cs_get_state(SpiPort spi, GpioState *input_state) {
-  return gpio_get_state(&s_port[spi].cs, input_state);
+  // Proceed if mutex is intialized
+  if (spi_mutex->handle == NULL){
+     return status_msg(STATUS_CODE_UNINITIALIZED, "Mutex is not intialized");
+  }
+
+  // use spi if mutex is unlocked
+  if (mutex_lock(*spi_mutex, SSPI_MUTEX_WAIT_MS) == STATUS_CODE_OK){
+    return gpio_get_state(&s_port[spi].cs, input_state);
+  }
+
+  return STATUS_CODE_OK;
 }
 
 StatusCode spi_exchange(SpiPort spi, uint8_t *tx_data, size_t tx_len, uint8_t *rx_data,
