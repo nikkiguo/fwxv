@@ -7,6 +7,7 @@
 #include <stdbool.h>
 // #include "critical_section.h"
 #include "log.h"
+#include "mutex.h"
 #include "stm32f0xx.h"
 
 // Arbitrary timeout
@@ -35,6 +36,10 @@ typedef struct {
   I2C_TypeDef *base;
   I2CSettings settings;
 } I2CPortData;
+
+// I2C mutex for simultaneous task handling
+#define I2C_MUTEX_WAIT_MS 1000
+static Mutex i2c_mutex = {0}
 
 static I2CPortData s_port[NUM_I2C_PORTS] = {
   [I2C_PORT_1] = { .periph = RCC_APB1Periph_I2C1, .base = I2C1 },
@@ -123,6 +128,8 @@ StatusCode i2c_init(I2CPort i2c, const I2CSettings *settings) {
 
   I2C_Cmd(s_port[i2c].base, ENABLE);
 
+  mutex_init(&i2c_mutex);
+
   return STATUS_CODE_OK;
 }
 
@@ -132,11 +139,22 @@ StatusCode i2c_read(I2CPort i2c, I2CAddress addr, uint8_t *rx_data, size_t rx_le
   }
   // CRITICAL_SECTION_AUTOEND;
 
-  I2C_TIMEOUT_WHILE_FLAG(i2c, I2C_FLAG_BUSY, SET);
+  // Proceed if mutex is intialized
+  if (i2c_mutex->handle == NULL){
+     return status_msg(STATUS_CODE_UNINITIALIZED, "Mutex is not intialized");
+  }
 
-  status_ok_or_return(prv_transfer(i2c, addr, true, rx_data, rx_len, I2C_AutoEnd_Mode));
+  // use i2c if mutex is unlocked
+  if (mutex_lock(*i2c_mutex, I2C_MUTEX_WAIT_MS) == STATUS_CODE_OK){
+      I2C_TIMEOUT_WHILE_FLAG(i2c, I2C_FLAG_BUSY, SET);
 
-  I2C_STOP(i2c);
+      status_ok_or_return(prv_transfer(i2c, addr, true, rx_data, rx_len, I2C_AutoEnd_Mode));
+
+      I2C_STOP(i2c);
+
+      mutex_unlock(*i2c_mutex);
+
+  }
 
   return STATUS_CODE_OK;
 }
@@ -146,12 +164,23 @@ StatusCode i2c_write(I2CPort i2c, I2CAddress addr, uint8_t *tx_data, size_t tx_l
     return status_msg(STATUS_CODE_INVALID_ARGS, "Invalid I2C port.");
   }
   // CRITICAL_SECTION_AUTOEND;
+  
+  // Proceed if mutex is intialized
+  if (i2c_mutex->handle == NULL){
+     return status_msg(STATUS_CODE_UNINITIALIZED, "Mutex is not intialized");
+  }
 
-  I2C_TIMEOUT_WHILE_FLAG(i2c, I2C_FLAG_BUSY, SET);
+  // use i2c if mutex is unlocked
+  if (mutex_lock(*i2c_mutex, I2C_MUTEX_WAIT_MS) == STATUS_CODE_OK){
+      I2C_TIMEOUT_WHILE_FLAG(i2c, I2C_FLAG_BUSY, SET);
 
-  status_ok_or_return(prv_transfer(i2c, addr, false, tx_data, tx_len, I2C_AutoEnd_Mode));
+      status_ok_or_return(prv_transfer(i2c, addr, false, tx_data, tx_len, I2C_AutoEnd_Mode));
 
-  I2C_STOP(i2c);
+      I2C_STOP(i2c);
+
+      mutex_unlock(*i2c_mutex);
+
+  }
 
   return STATUS_CODE_OK;
 }
@@ -163,12 +192,23 @@ StatusCode i2c_read_reg(I2CPort i2c, I2CAddress addr, uint8_t reg, uint8_t *rx_d
   }
   // CRITICAL_SECTION_AUTOEND;
 
-  I2C_TIMEOUT_WHILE_FLAG(i2c, I2C_FLAG_BUSY, SET);
+  // Proceed if mutex is intialized
+  if (i2c_mutex->handle == NULL){
+     return status_msg(STATUS_CODE_UNINITIALIZED, "Mutex is not intialized");
+  }
 
-  status_ok_or_return(prv_transfer(i2c, addr, false, &reg, sizeof(reg), I2C_SoftEnd_Mode));
-  status_ok_or_return(prv_transfer(i2c, addr, true, rx_data, rx_len, I2C_AutoEnd_Mode));
+  // use i2c if mutex is unlocked
+  if (mutex_lock(*i2c_mutex, I2C_MUTEX_WAIT_MS) == STATUS_CODE_OK){
+      I2C_TIMEOUT_WHILE_FLAG(i2c, I2C_FLAG_BUSY, SET);
 
-  I2C_STOP(i2c);
+      status_ok_or_return(prv_transfer(i2c, addr, false, &reg, sizeof(reg), I2C_SoftEnd_Mode));
+      status_ok_or_return(prv_transfer(i2c, addr, true, rx_data, rx_len, I2C_AutoEnd_Mode));
+
+      I2C_STOP(i2c);
+
+      mutex_unlock(*i2c_mutex);
+
+  }
 
   return STATUS_CODE_OK;
 }
@@ -180,12 +220,23 @@ StatusCode i2c_write_reg(I2CPort i2c, I2CAddress addr, uint8_t reg, uint8_t *tx_
   }
   // CRITICAL_SECTION_AUTOEND;
 
-  I2C_TIMEOUT_WHILE_FLAG(i2c, I2C_FLAG_BUSY, SET);
+  // Proceed if mutex is intialized
+  if (i2c_mutex->handle == NULL){
+     return status_msg(STATUS_CODE_UNINITIALIZED, "Mutex is not intialized");
+  }
 
-  status_ok_or_return(prv_transfer(i2c, addr, false, &reg, sizeof(reg), I2C_SoftEnd_Mode));
-  status_ok_or_return(prv_transfer(i2c, addr, false, tx_data, tx_len, I2C_AutoEnd_Mode));
+  // use i2c if mutex is unlocked
+  if (mutex_lock(*i2c_mutex, I2C_MUTEX_WAIT_MS) == STATUS_CODE_OK){
+      I2C_TIMEOUT_WHILE_FLAG(i2c, I2C_FLAG_BUSY, SET);
 
-  I2C_STOP(i2c);
+      status_ok_or_return(prv_transfer(i2c, addr, false, &reg, sizeof(reg), I2C_SoftEnd_Mode));
+      status_ok_or_return(prv_transfer(i2c, addr, false, tx_data, tx_len, I2C_AutoEnd_Mode));
+
+      I2C_STOP(i2c);
+
+      mutex_unlock(*i2c_mutex);
+
+  }
 
   return STATUS_CODE_OK;
 }
