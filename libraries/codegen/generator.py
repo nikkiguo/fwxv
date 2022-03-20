@@ -2,24 +2,29 @@ from optparse import OptionParser
 import jinja2
 import os
 import yaml
+import re
 
 
 def read_yaml(yaml_file):
     with open(yaml_file, "r") as f:
         data = yaml.load(f, Loader=yaml.FullLoader)
+        # Only check if a board is specified
+        if "Boards" in data.keys():
+            return data
+        elif "Messages" in data.keys():
+            check_yaml_file(data)
+        else:
+            raise Exception("No message or board present in yaml")
         return data
 
 def get_board_name(yaml_path):
     return yaml_path.split("/")[len(yaml_path.split("/"))-1].split(".")[0]
 
-def get_file_path(template_name, yaml_path, data, dest="./"):
-    # get the name of the yaml file (board name) from the filepath
-    board = get_board_name(yaml_path)
-    data["Board"] = board
+def get_file_name(template_name, board):
     # get the name of the jinja file from the filepath
     jinja_prefix = template_name[:-6]
-    # files that start with _ are generic and we want to append the specific name in front
-    return dest + (board + jinja_prefix if jinja_prefix[0] == "_" else jinja_prefix)
+    # files that start with _ are generic and we want to prepend the board name
+    return board + jinja_prefix if jinja_prefix[0] == "_" and board else jinja_prefix
 
 
 def write_template(env, template_name, file_path, data):
@@ -39,10 +44,10 @@ def process_setter_data(board, data, master_data):
 
 def get_dbc_data():
     yaml_files = get_yaml_files()
-    master_data = {"Messages" : []}
-    for file in yaml_files:
-        data = read_yaml(file)
-        sender = get_board_name(file)
+    master_data = {"Messages" : [], "Boards": get_boards()}
+    for can_board_id, board in enumerate(master_data["Boards"]):
+        data = read_yaml(yaml_files[board])
+        sender = get_board_name(yaml_files[board])
         for message_key in data["Messages"]:
             start_bit = 0
             message = data["Messages"][message_key]
@@ -62,7 +67,7 @@ def get_dbc_data():
                 })
                 start_bit += signal["length"]
             master_data["Messages"].append({
-                "id": message["id"],
+                "id": (message["id"] << 5) + can_board_id,
                 "message_name": message_key,
                 "signals": signals,
                 "data_length": 8,
@@ -78,32 +83,64 @@ def get_boards_dir():
 
 def get_yaml_files():
     path_to_boards = get_boards_dir()
-    yaml_files = []
-    for filename in os.listdir(path_to_boards):
-        file_prefix = filename.split(".")[0]  # only get the part before .yaml
-        if file_prefix != "boards":
-            yaml_files.append(os.path.join(path_to_boards, filename))
+    yaml_files = {}
+    for file in os.listdir(path_to_boards):
+        board_name = file.split(".")[0]  # only get the part before .yaml
+        if board_name != "boards":
+            yaml_files[board_name] = os.path.join(path_to_boards, file)
 
     return yaml_files
 
 def get_boards():
     path_to_boards = get_boards_dir()
-    for filename in os.listdir(path_to_boards):
-        file_prefix = filename.split(".")[0]  # only get the part before .yaml
-        if file_prefix == "boards":
-            return os.path.join(path_to_boards, filename)
+    for file in os.listdir(path_to_boards):
+        board_name = file.split(".")[0]  # only get the part before .yaml
+        if board_name == "boards":
+            boards_yaml = os.path.join(path_to_boards, file)
+            return read_yaml(boards_yaml)["Boards"]
 
-    return False
+    return []
 
 def parse_board_yaml_files(board):
-    yaml_files = get_yaml_files()
     master_data = {"Board": board, "Signals": []}
-    for file in yaml_files:
+    yaml_files = list(get_yaml_files().values())
+    for file in yaml_files:  
         data = read_yaml(file)
         process_setter_data(board, data, master_data)
 
     return master_data
 
+def check_yaml_file(data):
+    regex = re.compile('[@!#$%^&*()<>?/\|}{~:]')
+    message_ids = set()
+
+    for message in data["Messages"]:
+        # Message has id
+        if "id" not in data["Messages"][message]:
+            raise Exception("Message " + message + " has no id")
+        # No same ids for messages within a message
+        if data["Messages"][message]["id"] in message_ids:
+            raise Exception("Duplicate message id")
+        # All ids are between 0-64
+        elif data["Messages"][message]["id"] > 64 or data["Messages"][message]["id"] < 0:
+            raise Exception("Invalid message id")
+        else:
+            message_ids.add(data["Messages"][message]["id"])
+        # No illegal characters in message names
+        if(regex.search(message) != None):
+            raise Exception("Illegal character in message name")
+        # Doesn't have more than 8 signals per message
+        if len(data["Messages"][message]["signals"]) > 8:
+            raise Exception("More than 8 signals in a message")
+
+        signal_len = data["Messages"][message]["signals"][next(iter(data["Messages"][message]["signals"]))]["length"]
+        for signal in data["Messages"][message]["signals"]:
+            # All signals within a message are the same length
+            if data["Messages"][message]["signals"][signal]["length"] != signal_len:
+                raise Exception("Signal length mismatch")
+            # No illegal characters in signal names
+            if(regex.search(signal) != None):
+                raise Exception("Illegal character in signal name")
 
 def main():
     print("Done autogenerating")
@@ -115,29 +152,34 @@ if __name__ == "__main__":
                       help="yaml file to read", metavar="FILE")
     parser.add_option("-t", "--template", dest="template",
                       help="template file to populate", metavar="FILE")
-    parser.add_option("-b", "--board", dest="board", help="which board to generate")
+    parser.add_option("-b", "--board", default=None, dest="board", help="which board to generate")
+    parser.add_option("-f", "--file_path", default=".", dest="file_path", help="output file path")
 
     (options, args) = parser.parse_args()
 
-    templateLoader = jinja2.FileSystemLoader(searchpath="./libraries/codegen/templates")
-    env = jinja2.Environment(loader=templateLoader)
+    if options.template:
+        codegen_dir = '/'.join(options.template.split('/')[:-1])
+        template_name = options.template.split('/')[-1]
+        templateLoader = jinja2.FileSystemLoader(searchpath=codegen_dir)
+        env = jinja2.Environment(loader=templateLoader)
+        file_path = options.file_path + "/" + get_file_name(template_name, options.board)
 
-    if options.template and "system_can" in options.template:
-        data = get_dbc_data()
-        boards = get_boards()
-        data["Boards"] = read_yaml(boards)["Boards"]
-        file_path = "./" + options.template[:-6]
-        write_template(env, options.template, file_path, data)
-    elif options.board: # only for _setters.h
-        data = parse_board_yaml_files(options.board)
-        if options.template:
-            file_path = "./" + options.board + options.template[:-6]
-            write_template(env, options.template, file_path, data)
-    else:
-        for y in options.yaml_file:
-            data = read_yaml(y)
-            if options.template:
-                file_path = get_file_path(options.template, y, data)
-                write_template(env, options.template, file_path, data)
+        if "system_can.dbc" in template_name:
+            data = get_dbc_data()
+            if len(data["Boards"]):
+                write_template(env, template_name, file_path, data)
+        elif options.yaml_file:
+            for y in options.yaml_file:
+                data = read_yaml(y)
+                if options.board:
+                    data["Board"] = options.board
+                if data.get("Boards"):
+                    data["Boards"] = [
+                        parse_board_yaml_files(data["Boards"][i]) for i in range(len(data["Boards"]))
+                    ]
+                write_template(env, template_name, file_path, data)
+        elif options.board:
+            data = parse_board_yaml_files(options.board)
+            write_template(env, template_name, file_path, data)
 
     main()
