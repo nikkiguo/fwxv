@@ -49,6 +49,7 @@ AddOption(
 PLATFORM = GetOption('platform')
 PROJECT = GetOption('project')
 LIBRARY = GetOption('library')
+TEST = GetOption('testfile')
 
 ###########################################################
 # Environment setup
@@ -324,8 +325,8 @@ def get_test_list():
     # Assume only one of project or library is set
     entry = proj + lib
     if entry and tests.get(entry):
-        if GetOption('testfile'):
-            return [test for test in tests[entry] if test.name == 'test_' + GetOption('testfile')]
+        if TEST:
+            return [test for test in tests[entry] if test.name == 'test_' + TEST]
         else:
             return [test for test in tests[entry]]
     else:
@@ -460,25 +461,32 @@ Alias('format', format)
 # Helper targets for x86
 ###########################################################
 
-if PLATFORM == 'x86' and PROJECT:
-    # os.exec the x86 project ELF file to simulate it
-    def sim_run(target, source, env):
-        path = proj_elf(PROJECT).path
-        print('Simulating', PROJECT)
-        os.execv(path, [path])
+if PLATFORM == 'x86':
+    if PROJECT:
+        # os.exec the x86 project ELF file to simulate it
+        def sim_run(target, source, env):
+            path = proj_elf(PROJECT).path
+            print('Simulating', PROJECT)
+            os.execv(path, [path])
 
-    sim = Command('sim.txt', [], sim_run)
-    Depends(sim, proj_elf(PROJECT))
-    Alias('sim', sim)
+        sim = Command('sim.txt', [], sim_run)
+        Depends(sim, proj_elf(PROJECT))
+        Alias('sim', sim)
 
-    # open gdb with the elf file
-    def gdb_run(target, source, env):
-        path = proj_elf(PROJECT).path
-        os.execv('/usr/bin/gdb', ['/usr/bin/gdb', path])
+    if PROJECT or (TEST and get_test_list()):
+        if TEST:
+            # pick the first to debug
+            elf = get_test_list()[0]
+        else:
+            elf = proj_elf(PROJECT)
 
-    gdb = Command('gdb.txt', [], gdb_run)
-    Depends(gdb, proj_elf(PROJECT))
-    Alias('gdb', gdb)
+        # open gdb with the elf file
+        def gdb_run(target, source, env):
+            os.execv('/usr/bin/gdb', ['/usr/bin/gdb', elf.path])
+
+        gdb = Command('gdb.txt', [], gdb_run)
+        Depends(gdb, elf)
+        Alias('gdb', gdb)
 
 ###########################################################
 # Helper targets for arm
