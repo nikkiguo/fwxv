@@ -235,15 +235,16 @@ Default([proj.name for proj in PROJ_DIRS])
 GEN_RUNNER = 'libraries/unity/auto/generate_test_runner.rb'
 GEN_RUNNER_CONFIG = 'libraries/unity/unity_config.yml'
 
-# tests dict maps proj/lib -> list of their test executables
+# tests dict maps proj/lib -> list of pairs of their test files and their test executables
 tests = {}
 
 # Create the test executable targets
 for entry in PROJ_DIRS + LIB_DIRS:
     tests[entry.name] = []
-    for test_file in OBJ_DIR.Dir(str(entry)).Dir('test').glob('*.c'):
-        # Link runner object, test file object, and proj/lib objects
-        # into executable
+    test_dir = OBJ_DIR.Dir(str(entry)).Dir('test')
+    # Allow one level of nesting within the test/ dir
+    for test_file in test_dir.glob('*.c') + test_dir.glob('*/*.c'):
+        # Link runner object, test file object, and proj/lib objects into executable
         config = parse_config(entry)
         test_module_name = test_file.name.replace('test_', '').replace('.c', '')
         mock_link_flags = []
@@ -315,7 +316,7 @@ for entry in PROJ_DIRS + LIB_DIRS:
             Depends(target, lib_bin(entry.name))
 
         # Add to tests dict
-        tests[entry.name] += [node for node in target]
+        tests[entry.name] += [(test_file, node) for node in target]
 
 def get_test_list():
     # Based on the project/library and test in options,
@@ -326,14 +327,22 @@ def get_test_list():
     entry = proj + lib
     if entry and tests.get(entry):
         if TEST:
-            return [test for test in tests[entry] if test.name == 'test_' + TEST]
+            return [test for (file, test) in tests[entry] if test_matches(file, TEST)]
         else:
-            return [test for test in tests[entry]]
+            return [test for (_, test) in tests[entry]]
     else:
         ret = []
         for test_list in tests.values():
             ret += test_list
         return ret
+
+def test_matches(file, test_spec):
+    # Does the test file 'file' match 'test_spec' as entered by the user as --test=<test_spec>?
+    # Insert 'test_' after the last '/' and append '.c', then check containment
+    # Also prepend '/' so that we don't accidentally match a suffix of a directory/file
+    slash_idx = test_spec.rfind('/') + 1  # works because rfind returns -1 if not found
+    test_spec = '/' + test_spec[:slash_idx] + 'test_' + test_spec[slash_idx:] + '.c'
+    return test_spec in file.abspath
 
 def test_runner(target, source, env):
     test_list = get_test_list()
