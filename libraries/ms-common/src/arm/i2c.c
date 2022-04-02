@@ -40,7 +40,7 @@ typedef struct {
 
 // I2C mutex for simultaneous task handling
 #define I2C_MUTEX_WAIT_MS 1000
-static Mutex i2c_mutex = {0}
+static Mutex i2c_mutex = {0};
 
 static I2CPortData s_port[NUM_I2C_PORTS] = {
   [I2C_PORT_1] = { .periph = RCC_APB1Periph_I2C1, .base = I2C1 },
@@ -141,19 +141,19 @@ StatusCode i2c_read(I2CPort i2c, I2CAddress addr, uint8_t *rx_data, size_t rx_le
   // CRITICAL_SECTION_AUTOEND;
 
   // Proceed if mutex is intialized
-  if (i2c_mutex->handle == NULL){
+  if (i2c_mutex.handle == NULL){
      return status_msg(STATUS_CODE_UNINITIALIZED, "Mutex is not intialized");
   }
 
   // use i2c if mutex is unlocked
-  if (mutex_lock(*i2c_mutex, I2C_MUTEX_WAIT_MS) == STATUS_CODE_OK){
+  if (mutex_lock(&i2c_mutex, I2C_MUTEX_WAIT_MS) == STATUS_CODE_OK){
       I2C_TIMEOUT_WHILE_FLAG(i2c, I2C_FLAG_BUSY, SET);
 
       status_ok_or_return(prv_transfer(i2c, addr, true, rx_data, rx_len, I2C_AutoEnd_Mode));
 
       I2C_STOP(i2c);
 
-      mutex_unlock(*i2c_mutex);
+      mutex_unlock(&i2c_mutex);
 
   }
 
@@ -167,19 +167,19 @@ StatusCode i2c_write(I2CPort i2c, I2CAddress addr, uint8_t *tx_data, size_t tx_l
   // CRITICAL_SECTION_AUTOEND;
   
   // Proceed if mutex is intialized
-  if (i2c_mutex->handle == NULL){
+  if (i2c_mutex.handle == NULL){
      return status_msg(STATUS_CODE_UNINITIALIZED, "Mutex is not intialized");
   }
 
   // use i2c if mutex is unlocked
-  if (mutex_lock(*i2c_mutex, I2C_MUTEX_WAIT_MS) == STATUS_CODE_OK){
+  if (mutex_lock(&i2c_mutex, I2C_MUTEX_WAIT_MS) == STATUS_CODE_OK){
       I2C_TIMEOUT_WHILE_FLAG(i2c, I2C_FLAG_BUSY, SET);
 
       status_ok_or_return(prv_transfer(i2c, addr, false, tx_data, tx_len, I2C_AutoEnd_Mode));
 
       I2C_STOP(i2c);
 
-      mutex_unlock(*i2c_mutex);
+      mutex_unlock(&i2c_mutex);
 
   }
 
@@ -194,12 +194,12 @@ StatusCode i2c_read_reg(I2CPort i2c, I2CAddress addr, uint8_t reg, uint8_t *rx_d
   // CRITICAL_SECTION_AUTOEND;
 
   // Proceed if mutex is intialized
-  if (i2c_mutex->handle == NULL){
+  if (i2c_mutex.handle == NULL){
      return status_msg(STATUS_CODE_UNINITIALIZED, "Mutex is not intialized");
   }
 
   // use i2c if mutex is unlocked
-  if (mutex_lock(*i2c_mutex, I2C_MUTEX_WAIT_MS) == STATUS_CODE_OK){
+  if (mutex_lock(&i2c_mutex, I2C_MUTEX_WAIT_MS) == STATUS_CODE_OK){
       I2C_TIMEOUT_WHILE_FLAG(i2c, I2C_FLAG_BUSY, SET);
 
       status_ok_or_return(prv_transfer(i2c, addr, false, &reg, sizeof(reg), I2C_SoftEnd_Mode));
@@ -207,7 +207,7 @@ StatusCode i2c_read_reg(I2CPort i2c, I2CAddress addr, uint8_t reg, uint8_t *rx_d
 
       I2C_STOP(i2c);
 
-      mutex_unlock(*i2c_mutex);
+      mutex_unlock(&i2c_mutex);
 
   }
 
@@ -222,12 +222,12 @@ StatusCode i2c_write_reg(I2CPort i2c, I2CAddress addr, uint8_t reg, uint8_t *tx_
   // CRITICAL_SECTION_AUTOEND;
 
   // Proceed if mutex is intialized
-  if (i2c_mutex->handle == NULL){
+  if (i2c_mutex.handle == NULL){
      return status_msg(STATUS_CODE_UNINITIALIZED, "Mutex is not intialized");
   }
 
   // use i2c if mutex is unlocked
-  if (mutex_lock(*i2c_mutex, I2C_MUTEX_WAIT_MS) == STATUS_CODE_OK){
+  if (mutex_lock(&i2c_mutex, I2C_MUTEX_WAIT_MS) == STATUS_CODE_OK){
       I2C_TIMEOUT_WHILE_FLAG(i2c, I2C_FLAG_BUSY, SET);
 
       status_ok_or_return(prv_transfer(i2c, addr, false, &reg, sizeof(reg), I2C_SoftEnd_Mode));
@@ -235,7 +235,7 @@ StatusCode i2c_write_reg(I2CPort i2c, I2CAddress addr, uint8_t reg, uint8_t *tx_
 
       I2C_STOP(i2c);
 
-      mutex_unlock(*i2c_mutex);
+      mutex_unlock(&i2c_mutex);
 
   }
 

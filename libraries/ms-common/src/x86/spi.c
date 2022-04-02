@@ -2,8 +2,13 @@
 
 #include "log.h"
 #include "spi_mcu.h"
+#include "mutex.h"
 
 static GpioState s_cs_curr_state = GPIO_STATE_HIGH;
+
+// SPI mutex for simultaneous task handling
+#define SPI_MUTEX_WAIT_MS BLOCK_INDEFINITELY
+static Mutex spi_mutex = {0};
 
 StatusCode spi_init(SpiPort spi, const SpiSettings *settings) {
   if (spi >= NUM_SPI_PORTS) {
@@ -11,29 +16,48 @@ StatusCode spi_init(SpiPort spi, const SpiSettings *settings) {
   } else if (settings->mode >= NUM_SPI_MODES) {
     return status_msg(STATUS_CODE_INVALID_ARGS, "Invalid SPI mode.");
   }
+  mutex_init(&spi_mutex);
+
   return STATUS_CODE_OK;
 }
 
 StatusCode spi_tx(SpiPort spi, uint8_t *tx_data, size_t tx_len) {
+  // use spi if mutex is unlocked
+  if (mutex_lock(&spi_mutex, SPI_MUTEX_WAIT_MS) == STATUS_CODE_OK){
+    mutex_unlock(&spi_mutex);
+  }
   return STATUS_CODE_OK;
 }
 
 StatusCode spi_rx(SpiPort spi, uint8_t *rx_data, size_t rx_len, uint8_t placeholder) {
-  for (size_t i = 0; i < rx_len; i++) {
-    // Insert dummy data
-    if (i % 2 == 0) {
-      rx_data[i] = 1;
+  if (mutex_lock(&spi_mutex, SPI_MUTEX_WAIT_MS) == STATUS_CODE_OK){
+    for (size_t i = 0; i < rx_len; i++) {
+      // Insert dummy data
+      if (i % 2 == 0) {
+        rx_data[i] = 1;
+      }
     }
+
+    mutex_unlock(&spi_mutex);
   }
+
   return STATUS_CODE_OK;
 }
+
 StatusCode spi_cs_set_state(SpiPort spi, GpioState state) {
-  s_cs_curr_state = state;
+  if (mutex_lock(&spi_mutex, SPI_MUTEX_WAIT_MS) == STATUS_CODE_OK){
+    s_cs_curr_state = state;
+    mutex_unlock(&spi_mutex);
+
+  }
   return STATUS_CODE_OK;
 }
 
 StatusCode spi_cs_get_state(SpiPort spi, GpioState *input_state) {
-  *input_state = s_cs_curr_state;
+  if (mutex_lock(&spi_mutex, SPI_MUTEX_WAIT_MS) == STATUS_CODE_OK){
+    *input_state = s_cs_curr_state;
+    mutex_unlock(&spi_mutex);
+  }
   return STATUS_CODE_OK;
 }
 

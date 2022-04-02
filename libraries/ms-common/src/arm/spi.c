@@ -2,6 +2,7 @@
 
 #include "gpio.h"
 #include "spi_mcu.h"
+#include "mutex.h"
 #include "stm32f0xx.h"
 
 typedef struct {
@@ -17,8 +18,8 @@ static SpiPortData s_port[NUM_SPI_PORTS] = {
 };
 
 // I2C mutex for simultaneous task handling
-#define SPI_MUTEX_WAIT_MS 1000
-static Mutex spi_mutex = {0}
+#define SPI_MUTEX_WAIT_MS BLOCK_INDEFINITELY
+static Mutex spi_mutex = {0};
 
 StatusCode spi_init(SpiPort spi, const SpiSettings *settings) {
   if (spi >= NUM_SPI_PORTS) {
@@ -81,12 +82,12 @@ StatusCode spi_init(SpiPort spi, const SpiSettings *settings) {
 
 StatusCode spi_tx(SpiPort spi, uint8_t *tx_data, size_t tx_len) {
   // Proceed if mutex is intialized
-  if (spi_mutex->handle == NULL){
+  if (spi_mutex.handle == NULL){
      return status_msg(STATUS_CODE_UNINITIALIZED, "Mutex is not intialized");
   }
 
   // use spi if mutex is unlocked
-  if (mutex_lock(*spi_mutex, SSPI_MUTEX_WAIT_MS) == STATUS_CODE_OK){
+  if (mutex_lock(&spi_mutex, SPI_MUTEX_WAIT_MS) == STATUS_CODE_OK){
     for (size_t i = 0; i < tx_len; i++) {
       while (SPI_I2S_GetFlagStatus(s_port[spi].base, SPI_I2S_FLAG_TXE) == RESET) {
       }
@@ -95,6 +96,8 @@ StatusCode spi_tx(SpiPort spi, uint8_t *tx_data, size_t tx_len) {
       while (SPI_I2S_GetFlagStatus(s_port[spi].base, SPI_I2S_FLAG_RXNE) == RESET) {
       }
       SPI_ReceiveData8(s_port[spi].base);
+
+      mutex_unlock(&spi_mutex);
     }
   }
 
@@ -103,12 +106,12 @@ StatusCode spi_tx(SpiPort spi, uint8_t *tx_data, size_t tx_len) {
 
 StatusCode spi_rx(SpiPort spi, uint8_t *rx_data, size_t rx_len, uint8_t placeholder) {
    // Proceed if mutex is intialized
-  if (spi_mutex->handle == NULL){
+  if (spi_mutex.handle == NULL){
      return status_msg(STATUS_CODE_UNINITIALIZED, "Mutex is not intialized");
   }
 
   // use spi if mutex is unlocked
-  if (mutex_lock(*spi_mutex, SSPI_MUTEX_WAIT_MS) == STATUS_CODE_OK){
+  if (mutex_lock(&spi_mutex, SPI_MUTEX_WAIT_MS) == STATUS_CODE_OK){
     for (size_t i = 0; i < rx_len; i++) {
       while (SPI_I2S_GetFlagStatus(s_port[spi].base, SPI_I2S_FLAG_TXE) == RESET) {
       }
@@ -118,6 +121,7 @@ StatusCode spi_rx(SpiPort spi, uint8_t *rx_data, size_t rx_len, uint8_t placehol
       }
       rx_data[i] = SPI_ReceiveData8(s_port[spi].base);
     }
+    mutex_unlock(&spi_mutex);
   }
 
   return STATUS_CODE_OK;
@@ -125,13 +129,15 @@ StatusCode spi_rx(SpiPort spi, uint8_t *rx_data, size_t rx_len, uint8_t placehol
 
 StatusCode spi_cs_set_state(SpiPort spi, GpioState state) {
   // Proceed if mutex is intialized
-  if (spi_mutex->handle == NULL){
+  if (spi_mutex.handle == NULL){
      return status_msg(STATUS_CODE_UNINITIALIZED, "Mutex is not intialized");
   }
 
   // use spi if mutex is unlocked
-  if (mutex_lock(*spi_mutex, SSPI_MUTEX_WAIT_MS) == STATUS_CODE_OK){
-    return gpio_set_state(&s_port[spi].cs, state);
+  if (mutex_lock(&spi_mutex, SPI_MUTEX_WAIT_MS) == STATUS_CODE_OK){
+    StatusCode set_status = gpio_set_state(&s_port[spi].cs, state);
+    mutex_unlock(&spi_mutex);
+    return set_status;
   }
 
   return STATUS_CODE_OK;
@@ -139,13 +145,15 @@ StatusCode spi_cs_set_state(SpiPort spi, GpioState state) {
 
 StatusCode spi_cs_get_state(SpiPort spi, GpioState *input_state) {
   // Proceed if mutex is intialized
-  if (spi_mutex->handle == NULL){
+  if (spi_mutex.handle == NULL){
      return status_msg(STATUS_CODE_UNINITIALIZED, "Mutex is not intialized");
   }
 
   // use spi if mutex is unlocked
-  if (mutex_lock(*spi_mutex, SSPI_MUTEX_WAIT_MS) == STATUS_CODE_OK){
-    return gpio_get_state(&s_port[spi].cs, input_state);
+  if (mutex_lock(&spi_mutex, SPI_MUTEX_WAIT_MS) == STATUS_CODE_OK){
+    StatusCode set_status = gpio_get_state(&s_port[spi].cs, input_state)
+    mutex_unlock(&spi_mutex);
+    return set_status;
   }
 
   return STATUS_CODE_OK;
