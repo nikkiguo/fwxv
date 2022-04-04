@@ -29,6 +29,8 @@ TASK(notify_task, TASK_STACK_512) {
   for (uint8_t i = 0; i < NUM_TEST_EVENTS; i++) {
     TEST_ASSERT_OK(notify(receive_task->handle, s_notify_events[i]));
   }
+  // Prevent task from exiting
+  while(true){}
 }
 
 TASK(receive_task, TASK_STACK_512) {
@@ -51,6 +53,8 @@ TASK(receive_task, TASK_STACK_512) {
     TEST_ASSERT_EQUAL(s_notify_events[i], e);
     i++;
   }
+  // Prevent task from exiting
+  while(true){}
 }
 
 TASK_TEST(test_notifications, TASK_MIN_STACK_SIZE) {

@@ -20,6 +20,7 @@ TASK(pub_task, TASK_STACK_512) {
   TEST_ASSERT_OK(publish(TOPIC_1));
   delay_ms(10);
   TEST_ASSERT_OK(publish(TOPIC_2));
+  while(true){}
 }
 
 TASK(sub_task1, TASK_STACK_512) {
@@ -31,6 +32,7 @@ TASK(sub_task1, TASK_STACK_512) {
   TEST_ASSERT_OK(notify_wait(&notification, 10));
   TEST_ASSERT_OK(event_from_notification(&notification, &e));
   TEST_ASSERT_EQUAL(1, e);
+  while(true){}
 }
 
 TASK(sub_task2, TASK_STACK_512) {
@@ -42,6 +44,7 @@ TASK(sub_task2, TASK_STACK_512) {
   TEST_ASSERT_OK(notify_wait(&notification, 10));
   TEST_ASSERT_OK(event_from_notification(&notification, &e));
   TEST_ASSERT_EQUAL(1, e);
+  while(true){}
 }
 
 TASK(sub_task3, TASK_STACK_512) {
@@ -53,6 +56,7 @@ TASK(sub_task3, TASK_STACK_512) {
   TEST_ASSERT_OK(notify_wait(&notification, 10));
   TEST_ASSERT_OK(event_from_notification(&notification, &e));
   TEST_ASSERT_EQUAL(1, e);
+  while(true){}
 }
 
 TASK(sub_task4, TASK_STACK_512) {
@@ -64,6 +68,7 @@ TASK(sub_task4, TASK_STACK_512) {
   TEST_ASSERT_OK(notify_wait(&notification, 10));
   TEST_ASSERT_OK(event_from_notification(&notification, &e));
   TEST_ASSERT_EQUAL(1, e);
+  while(true){}
 }
 
 TASK(sub_task5, TASK_STACK_512) {
@@ -75,6 +80,7 @@ TASK(sub_task5, TASK_STACK_512) {
   TEST_ASSERT_OK(notify_wait(&notification, 10));
   TEST_ASSERT_OK(event_from_notification(&notification, &e));
   TEST_ASSERT_EQUAL(1, e);
+  while(true){}
 }
 
 TASK(sub_task6, TASK_STACK_512) {
@@ -86,6 +92,7 @@ TASK(sub_task6, TASK_STACK_512) {
   TEST_ASSERT_OK(notify_wait(&notification, 10));
   TEST_ASSERT_OK(event_from_notification(&notification, &e));
   TEST_ASSERT_EQUAL(1, e);
+  while(true){}
 }
 
 TASK(sub_task7, TASK_STACK_512) {
@@ -97,6 +104,7 @@ TASK(sub_task7, TASK_STACK_512) {
   TEST_ASSERT_OK(notify_wait(&notification, 10));
   TEST_ASSERT_OK(event_from_notification(&notification, &e));
   TEST_ASSERT_EQUAL(1, e);
+  while(true){}
 }
 
 void teardown_test(void) {}
