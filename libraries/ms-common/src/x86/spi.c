@@ -8,7 +8,7 @@
 static GpioState s_cs_curr_state = GPIO_STATE_HIGH;
 
 // SPI mutex for simultaneous task handling
-#define SPI_MUTEX_WAIT_MS BLOCK_INDEFINITELY
+#define SPI_MUTEX_WAIT_MS 1 // will be changed to BLOCK_INDEFENITELY, currently is 1 for testing purposes
 static Mutex spi_mutex = {0};
 
 StatusCode spi_init(SpiPort spi, const SpiSettings *settings) {
