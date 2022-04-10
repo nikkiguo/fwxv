@@ -8,7 +8,7 @@
 static GpioState s_cs_curr_state = GPIO_STATE_HIGH;
 
 // SPI mutex for simultaneous task handling
-#define SPI_MUTEX_WAIT_MS 1
+#define SPI_MUTEX_WAIT_MS BLOCK_INDEFINITELY
 static Mutex spi_mutex = {0};
 
 StatusCode spi_init(SpiPort spi, const SpiSettings *settings) {
@@ -40,7 +40,7 @@ StatusCode spi_rx(SpiPort spi, uint8_t *rx_data, size_t rx_len, uint8_t placehol
 
     //TODO: should find a way around for mutex write and remove this 
     delay_ms(rx_len);
-    
+
     mutex_unlock(&spi_mutex);
   }
 
