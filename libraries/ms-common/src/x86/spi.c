@@ -3,6 +3,7 @@
 #include "log.h"
 #include "spi_mcu.h"
 #include "mutex.h"
+#include "delay.h"
 
 static GpioState s_cs_curr_state = GPIO_STATE_HIGH;
 
@@ -22,7 +23,6 @@ StatusCode spi_init(SpiPort spi, const SpiSettings *settings) {
 }
 
 StatusCode spi_tx(SpiPort spi, uint8_t *tx_data, size_t tx_len) {
-  // use spi if mutex is unlocked
   if (mutex_lock(&spi_mutex, SPI_MUTEX_WAIT_MS) == STATUS_CODE_OK){
     mutex_unlock(&spi_mutex);
   }
