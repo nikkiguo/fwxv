@@ -168,6 +168,10 @@ StatusCode output_set_group(OutputGroup group, OutputState state);
 // STATUS_CODE_UNIMPLEMENTED is returned if current sense isn't supported by this output.
 StatusCode output_read_current(Output output, uint16_t *current);
 
+// Runs a cycle of the output monitor
+// Iterates through all outputs and reads a value from them, 
+StatusCode output_monitor(void);
+
 // Get the BTS7200 storage associated with an output, or NULL if it isn't OUTPUT_TYPE_BTS7200.
 // For testing purposes, do not use outside tests.
 Bts7200Storage *test_output_get_bts7200_storage(Output output);

@@ -42,14 +42,9 @@ typedef void (*Bts7200FaultCallback)(Bts7200Channel faulting_channel, void *cont
 // Use when the select pin is an STM32 GPIO pin
 typedef struct Bts7200Stm32Settings {
   GpioAddress *select_pin;
-  GpioAddress *sense_pin;
   GpioAddress *enable_0_pin;
   GpioAddress *enable_1_pin;
-  uint32_t interval_us;
-  Bts7200DataCallback callback;  // set to NULL for no callback
-  void *callback_context;
   Bts7200FaultCallback fault_callback;
-  void *fault_callback_context;
   uint32_t resistor;  // resistor value (in ohms) used to convert SENSE voltage to current
   int32_t bias;       // experimental bias to be subtracted from the resulting current, in mA
   // Faults are indicated by high voltage on the sense pin, see section 8.3 of BTS7200 datasheet.
@@ -60,14 +55,8 @@ typedef struct Bts7200Stm32Settings {
 typedef struct Bts7200Pca9539rSettings {
   I2CPort i2c_port;
   Pca9539rGpioAddress *select_pin;
-  GpioAddress *sense_pin;
   Pca9539rGpioAddress *enable_0_pin;
   Pca9539rGpioAddress *enable_1_pin;
-  uint32_t interval_us;
-  Bts7200DataCallback callback;  // set to NULL for no callback
-  void *callback_context;
-  Bts7200FaultCallback fault_callback;
-  void *fault_callback_context;
   uint32_t resistor;  // resistor value (in ohms) used to convert SENSE voltage to current
   int32_t bias;       // experimental bias to be subtracted from the resulting current, in mA
   // Faults are indicated by high voltage on the sense pin, see section 8.3 of BTS7200 datasheet.

@@ -3,9 +3,12 @@
 // Most of the functions in this file allow for a common API to easily interact with the
 // EN pin(s) on the load switches, abstracting the specific method of accessing the pin.
 
-#include "gpio.h"
+#include "FreeRTOS.h"
 #include "pca9539r_gpio_expander.h"
 #include "soft_timer.h"
+
+// Fault restart delay is the same across both the BTS7040 and the BTS7200
+#define BTS7XXX_FAULT_RESTART_DELAY_MS 110 
 
 #define STM32_GPIO_STATE_SELECT_OUT_0 GPIO_STATE_LOW
 #define STM32_GPIO_STATE_SELECT_OUT_1 GPIO_STATE_HIGH
@@ -23,8 +26,8 @@ typedef enum {
 typedef struct {
   GpioAddress *enable_pin_stm32;
   Pca9539rGpioAddress *enable_pin_pca9539r;
-  SoftTimerId fault_timer_id;
   bool fault_in_progress;
+  TickType_t fault_delay;
   Bts7xxxPinType pin_type;
 } Bts7xxxEnablePin;
 
@@ -48,3 +51,8 @@ StatusCode bts7xxx_disable_pin(Bts7xxxEnablePin *pin);
 
 // Broad function to get whether the pin passed in is enabled.
 StatusCode bts7xxx_get_pin_enabled(Bts7xxxEnablePin *pin);
+
+// Called on a pin if a fault is detected
+// Disables pin and sets a time to delay until, then enables again
+// Must be called repeatedly
+StatusCode bts7xxx_handle_fault_pin(Bts7xxxEnablePin *pin);

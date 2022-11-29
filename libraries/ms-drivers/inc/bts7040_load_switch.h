@@ -9,7 +9,6 @@
 
 #include "adc.h"
 #include "bts7xxx_common.h"
-#include "bts7xxx_common_impl.h"
 #include "gpio.h"
 #include "pca9539r_gpio_expander.h"
 #include "soft_timer.h"
@@ -104,10 +103,3 @@ bool bts7040_get_output_enabled(Bts7040Storage *storage);
 // implementation, the pointer to storage has to be valid for BTS7040_FAULT_RESTART_DELAY_MS.
 // Otherwise, bts7040_stop must be called before the pointer is freed to prevent segfaults.
 StatusCode bts7040_get_measurement(Bts7040Storage *storage, uint16_t *meas);
-
-// Set up a soft timer which periodically updates the storage with the latest measurement.
-// DO NOT USE if you are reading with bts7040_get_measurement.
-StatusCode bts7040_start(Bts7040Storage *storage);
-
-// Stop the measurement and fault timers associated with the storage.
-void bts7040_stop(Bts7040Storage *storage);

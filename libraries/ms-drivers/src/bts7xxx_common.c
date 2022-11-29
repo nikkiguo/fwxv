@@ -53,3 +53,23 @@ StatusCode bts7xxx_get_pin_enabled(Bts7xxxEnablePin *pin) {
     return (pin_state == PCA9539R_GPIO_STATE_HIGH);
   }
 }
+
+StatusCode bts7xxx_handle_fault_pin(Bts7xxxEnablePin *pin) {
+  if (!pin->fault_in_progress) {
+    if (bts7xxx_get_pin_enabled(pin)) {
+      status_ok_or_return(bts7xxx_disable_pin(pin));
+      pin->fault_delay = xTaskGetTickCount() + 
+        PD_MS_TO_TICKS(BTS7XXX_FAULT_RESTART_DELAY_MS);
+
+      // Only error handle if the pin is in use
+      pin->fault_in_progress = true;
+    }
+  } else {
+    // If required time has elapsed, re-enable
+    if (pin->fault_delay < xTaskGetTickCount())
+      status_ok_or_return(bts7xxx_enable_pin(pin));
+      pin->fault_in_progress = false;
+    }
+  }
+  return STATUS_CODE_OK;
+}
