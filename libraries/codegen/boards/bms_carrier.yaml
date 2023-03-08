@@ -68,6 +68,7 @@
       id: 58
       target:
         - bms_carrier
+        - centre_console
       signals:
         hv:
           length: 8
