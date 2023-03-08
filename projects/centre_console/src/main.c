@@ -3,6 +3,11 @@
 #include "log.h"
 #include "tasks.h"
 
+#include "fsm.h"
+#include "drive_fsm.h"
+#include "power_fsm.h"
+#include "delay.h"
+
 #ifdef MS_PLATFORM_X86
 #define MASTER_MS_CYCLE_TIME 100
 #else
@@ -11,7 +16,13 @@
 
 void run_fast_cycle() {}
 
-void run_medium_cycle() {}
+void run_medium_cycle() {
+  fsm_run_cycle(drive_fsm);
+  wait_tasks(1);
+  fsm_run_cycle(centre_console_power_fsm);
+  wait_tasks(1);
+  // delay_ms(1000);
+}
 
 void run_slow_cycle() {}
 
@@ -29,12 +40,15 @@ TASK(master_task, TASK_MIN_STACK_SIZE) {
 int main() {
   tasks_init();
   log_init();
-  LOG_DEBUG("Welcome to TEST!");
+  LOG_DEBUG("Welcome to TEST! \n");
+
+  init_drive_fsm();
+  init_power_fsm();
 
   tasks_init_task(master_task, TASK_PRIORITY(2), NULL);
 
   tasks_start();
 
-  LOG_DEBUG("exiting main?");
+  LOG_DEBUG("exiting main? \n");
   return 0;
 }
