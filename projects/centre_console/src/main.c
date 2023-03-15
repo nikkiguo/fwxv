@@ -32,14 +32,14 @@ TASK(master_task, TASK_MIN_STACK_SIZE) {
     run_fast_cycle();
     if (!(counter % 10)) run_medium_cycle();
     if (!(counter % 100)) run_slow_cycle();
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    vTaskDelay(pdMS_TO_TICKS(100));
     ++counter;
   }
 }
 
 int main() {
-  tasks_init();
   log_init();
+  tasks_init();
   LOG_DEBUG("Welcome to TEST! \n");
 
   init_drive_fsm();
