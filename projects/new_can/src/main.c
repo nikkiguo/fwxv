@@ -26,6 +26,7 @@ void run_fast_cycle() {}
 void run_medium_cycle() {
   run_can_rx_cycle();
   wait_tasks(1);
+  set_test_debug_operation(1);
 
   run_can_tx_cycle();
   wait_tasks(1);
@@ -33,7 +34,7 @@ void run_medium_cycle() {
 
 void run_slow_cycle() {}
 
-TASK(master_task, TASK_MIN_STACK_SIZE) {
+TASK(master_task, 512) {
   int counter = 0;
   while (true) {
 #ifdef TEST
@@ -57,7 +58,7 @@ int main() {
 
   LOG_DEBUG("Welcome to CAN!\n");
   can_init(&s_can_storage, &can_settings);
-  can_add_filter_in(SYSTEM_CAN_MESSAGE_NEW_CAN_TRANSMIT_MSG1);
+  //can_add_filter_in(SYSTEM_CAN_MESSAGE_NEW_CAN_TRANSMIT_MSG1);
 
   tasks_init_task(master_task, TASK_PRIORITY(2), NULL);
 
