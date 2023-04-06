@@ -2,6 +2,8 @@
 
 #include "can.h"
 #include "gpio.h"
+#include "gpio_it.h"
+#include "lights_fsm.h"
 #include "log.h"
 #include "power_seq_fsm.h"
 #include "tasks.h"
@@ -35,7 +37,7 @@ TASK(master_task, TASK_MIN_STACK_SIZE) {
     run_fast_cycle();
     if (!(counter % 10)) run_medium_cycle();
     if (!(counter % 100)) run_slow_cycle();
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    vTaskDelay(pdMS_TO_TICKS(100));
     ++counter;
   }
 }
@@ -43,10 +45,12 @@ TASK(master_task, TASK_MIN_STACK_SIZE) {
 int main() {
   tasks_init();
   log_init();
+  gpio_init();
   LOG_DEBUG("Welcome to TEST!");
 
   can_init(&s_can_storage, &can_settings);
   init_power_seq();
+  init_lights();
   tasks_init_task(master_task, TASK_PRIORITY(2), NULL);
 
   tasks_start();
