@@ -2,15 +2,13 @@
 
 #include "can.h"
 #include "can_board_ids.h"
-
-#include "log.h"
-#include "tasks.h"
-
-#include "fsm.h"
-#include "drive_fsm.h"
-#include "power_fsm.h"
-#include "fsm_shared_mem.h"
 #include "delay.h"
+#include "drive_fsm.h"
+#include "fsm.h"
+#include "fsm_shared_mem.h"
+#include "log.h"
+#include "power_fsm.h"
+#include "tasks.h"
 
 #ifdef MS_PLATFORM_X86
 #define MASTER_MS_CYCLE_TIME 100
@@ -52,7 +50,6 @@ TASK(master_task, TASK_MIN_STACK_SIZE) {
     ++counter;
   }
 }
-
 
 int main() {
   log_init();
